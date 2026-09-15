@@ -1,1 +1,685 @@
-test
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nassmelder</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap">
+<style>
+  :root {
+    --ground: #E9EBEE;
+    --surface: #FFFFFF;
+    --ink: #14181C;
+    --ink-soft: #5C646D;
+    --line: #D0D5DA;
+    --dry: #A96B12;
+    --dry-ink: #FFFFFF;
+    --mid: #5B7682;
+    --mid-ink: #FFFFFF;
+    --wet: #27466B;
+    --wet-ink: #FFFFFF;
+    --ok: #2C7A58;
+    --warn: #A85A12;
+    --font-display: "Archivo", system-ui, sans-serif;
+    --font-body: "IBM Plex Sans", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #14171A;
+      --surface: #1E2429;
+      --ink: #E7EAED;
+      --ink-soft: #98A2AB;
+      --line: #2C343B;
+      --dry: #E0A055;
+      --dry-ink: #1A1206;
+      --mid: #89A4AF;
+      --mid-ink: #10181C;
+      --wet: #5183B5;
+      --wet-ink: #08131F;
+      --ok: #4FA97D;
+      --warn: #E0A055;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--font-body);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 16px 14px;
+  }
+
+  .readout {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-soft);
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 8px;
+    min-height: 30px;
+  }
+  .readout .coords { color: var(--ink); letter-spacing: -0.01em; }
+  .readout .acc { white-space: nowrap; }
+  .readout.is-problem .coords { color: var(--warn); }
+
+  /* --- token setup --- */
+  .setup {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .setup summary {
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: var(--ink-soft);
+  }
+  .setup summary::-webkit-details-marker { display: none; }
+  .setup summary .dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    margin-right: 6px;
+    background: var(--warn);
+  }
+  .setup[data-configured="true"] summary .dot { background: var(--ok); }
+  .setup-body { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
+  .setup-body p { margin: 0; font-size: 12.5px; color: var(--ink-soft); text-wrap: balance; }
+  .setup-row { display: flex; gap: 6px; }
+  .setup-row input {
+    flex: 1;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    padding: 8px 10px;
+    border-radius: 7px;
+    border: 1px solid var(--line);
+    background: var(--ground);
+    color: var(--ink);
+  }
+  .setup-row button {
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 8px 14px;
+    border-radius: 7px;
+    border: 1px solid var(--ink);
+    background: var(--ink);
+    color: var(--ground);
+    cursor: pointer;
+  }
+
+  .picker { display: flex; flex-direction: column; gap: 6px; }
+  .picker label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-soft);
+  }
+  .picker select {
+    font-family: var(--font-body);
+    font-size: 16px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink);
+    width: 100%;
+  }
+
+  .exposure { display: flex; gap: 6px; }
+  .exposure button {
+    flex: 1;
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 500;
+    padding: 11px 8px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink-soft);
+    cursor: pointer;
+  }
+  .exposure button[aria-pressed="true"] {
+    border-color: var(--ink);
+    color: var(--ink);
+    background: var(--surface);
+    box-shadow: inset 0 0 0 1px var(--ink);
+  }
+
+  .keys { display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 260px; }
+  .key {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    border: none;
+    border-radius: 12px;
+    padding: 14px;
+    cursor: pointer;
+    font-family: var(--font-display);
+    text-align: center;
+    min-height: 78px;
+    transition: transform 120ms ease;
+  }
+  .key:active { transform: scale(0.985); }
+  .key .word {
+    font-size: clamp(26px, 8vw, 34px);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    line-height: 1;
+  }
+  .key .crit {
+    font-family: var(--font-body);
+    font-size: 12.5px;
+    font-weight: 400;
+    opacity: 0.9;
+    text-wrap: balance;
+  }
+  .key[disabled] { opacity: 0.4; cursor: not-allowed; }
+  .key-dry { background: var(--dry); color: var(--dry-ink); }
+  .key-mid { background: var(--mid); color: var(--mid-ink); }
+  .key-wet { background: var(--wet); color: var(--wet-ink); }
+  .key:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+
+  .blocked {
+    font-size: 12.5px;
+    color: var(--warn);
+    text-align: center;
+    min-height: 16px;
+  }
+
+  .note input {
+    width: 100%;
+    font-family: var(--font-body);
+    font-size: 15px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink);
+  }
+  .note input::placeholder { color: var(--ink-soft); }
+
+  .log { display: flex; flex-direction: column; gap: 4px; border-top: 1px solid var(--line); padding-top: 8px; }
+  .log-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft);
+  }
+  .log-row {
+    display: grid;
+    grid-template-columns: auto auto 1fr auto;
+    align-items: baseline;
+    gap: 8px;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-soft);
+  }
+  .log-row .cond { font-weight: 500; }
+  .log-row .cond[data-c="trocken"] { color: var(--dry); }
+  .log-row .cond[data-c="grenzwertig"] { color: var(--mid); }
+  .log-row .cond[data-c="nass"] { color: var(--wet); }
+  .log-row .where { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .log-row .state { font-size: 10.5px; }
+  .log-row .state.pending { color: var(--warn); }
+  .log-row .state.sent { color: var(--ok); }
+  .log-row .state.error { color: var(--wet); }
+  .log-row .drop {
+    border: none; background: none; color: var(--ink-soft);
+    font-family: var(--font-mono); font-size: 14px; line-height: 1;
+    padding: 0 2px; cursor: pointer;
+  }
+  .empty { font-size: 12px; color: var(--ink-soft); font-family: var(--font-body); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .key { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="readout" id="readout">
+  <span class="coords" id="coords">GPS wird gesucht…</span>
+  <span class="acc" id="acc"></span>
+</div>
+
+<details class="setup" id="setup">
+  <summary><span><span class="dot"></span>GitHub-Zugang</span><span id="setup-hint"></span></summary>
+  <div class="setup-body">
+    <p>Einmalig: Fine-grained Token mit <strong>Contents: Read and write</strong> nur für das Repo <strong>nassmelder-data</strong>. Bleibt nur auf diesem Gerät gespeichert, nie im Seitencode.</p>
+    <div class="setup-row">
+      <input type="password" id="token-input" placeholder="github_pat_…" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <button type="button" id="token-save">Speichern</button>
+    </div>
+  </div>
+</details>
+
+<div class="picker" id="picker" hidden>
+  <label for="place-select">Ort wählen</label>
+  <select id="place-select">
+    <option value="">— Ort wählen —</option>
+  </select>
+</div>
+
+<div class="exposure" role="group" aria-label="Exposition">
+  <button type="button" id="exp-offen" aria-pressed="true">Offene Straße</button>
+  <button type="button" id="exp-wald" aria-pressed="false">Wald / Schatten</button>
+</div>
+
+<div class="keys">
+  <button type="button" class="key key-dry" id="key-trocken">
+    <span class="word">TROCKEN</span>
+    <span class="crit">werde nicht dreckig</span>
+  </button>
+  <button type="button" class="key key-mid" id="key-grenzwertig">
+    <span class="word">GRENZWERTIG</span>
+    <span class="crit">dazwischen, unsicher</span>
+  </button>
+  <button type="button" class="key key-wet" id="key-nass">
+    <span class="word">NASS</span>
+    <span class="crit">dreckig ohne Schutzbleche</span>
+  </button>
+</div>
+
+<div class="blocked" id="blocked"></div>
+
+<div class="note">
+  <input type="text" id="note-input" placeholder="Notiz (optional)" autocomplete="off">
+</div>
+
+<div class="log">
+  <div class="log-head">
+    <span>Letzte Meldungen</span>
+    <span id="sync-state"></span>
+  </div>
+  <div id="log-rows"><div class="empty">Noch nichts gemeldet.</div></div>
+</div>
+
+<script>
+  const APP_VERSION = "2.0";
+  const QUEUE_KEY = "nassmelder.queue.v1";
+  const EXP_KEY = "nassmelder.exposure.v1";
+  const TOKEN_KEY = "nassmelder.ghtoken.v1";
+  const GH_OWNER = "Llireon";
+  const GH_REPO = "nassmelder-data";
+
+  const PLACES = [{"n":"Tempelhofer Feld","lat":52.4823,"lon":13.3527,"g":"Zonen","e":"offen"},{"n":"Krone","lat":52.4823,"lon":13.3527,"g":"Zonen","e":"wald"},{"n":"Ostkrone","lat":52.4823,"lon":13.3527,"g":"Zonen","e":"wald"},{"n":"Stahnsdorf-Sueden","lat":52.4823,"lon":13.3527,"g":"Zonen","e":"gemischt"},{"n":"BER/Zaunstrasse","lat":52.4823,"lon":13.3527,"g":"Zonen","e":"offen"},{"n":"Hennigsdorf","lat":52.636,"lon":13.2042,"g":"N","e":"offen"},{"n":"Velten","lat":52.6915,"lon":13.1753,"g":"N","e":"offen"},{"n":"Oranienburg","lat":52.7317,"lon":13.2424,"g":"N","e":"offen"},{"n":"Hohen Neuendorf","lat":52.6763,"lon":13.2777,"g":"N","e":"offen"},{"n":"Kremmen","lat":52.7622,"lon":13.0252,"g":"N","e":"offen"},{"n":"Fehrbellin","lat":52.7937,"lon":12.7583,"g":"N","e":"offen"},{"n":"Liebenwalde","lat":52.8713,"lon":13.3947,"g":"N","e":"offen"},{"n":"Panketal","lat":52.6509,"lon":13.5409,"g":"NE","e":"offen"},{"n":"Bernau bei Berlin","lat":52.6798,"lon":13.5871,"g":"NE","e":"offen"},{"n":"Ahrensfelde","lat":52.5766,"lon":13.5797,"g":"NE","e":"offen"},{"n":"Werneuchen","lat":52.6328,"lon":13.7344,"g":"NE","e":"offen"},{"n":"Altlandsberg","lat":52.565,"lon":13.7281,"g":"NE","e":"offen"},{"n":"Strausberg","lat":52.5363,"lon":13.8421,"g":"NE","e":"offen"},{"n":"Biesenthal","lat":52.7662,"lon":13.6442,"g":"NE","e":"offen"},{"n":"Eberswalde","lat":52.8402,"lon":13.7672,"g":"NE","e":"offen"},{"n":"Bad Freienwalde","lat":52.7873,"lon":14.0304,"g":"NE","e":"offen"},{"n":"Erkner","lat":52.42,"lon":13.7544,"g":"E","e":"offen"},{"n":"Fürstenwalde","lat":52.3916,"lon":13.9452,"g":"E","e":"offen"},{"n":"Schönefeld","lat":52.389,"lon":13.5037,"g":"SE","e":"offen"},{"n":"Schöneiche bei Berlin","lat":52.4729,"lon":13.6923,"g":"SE","e":"offen"},{"n":"Königs Wusterhausen","lat":52.3014,"lon":13.633,"g":"SE","e":"offen"},{"n":"Wildau","lat":52.3167,"lon":13.6333,"g":"SE","e":"offen"},{"n":"Mittenwalde","lat":52.2601,"lon":13.5395,"g":"SE","e":"offen"},{"n":"Storkow","lat":52.3653,"lon":13.8478,"g":"SE","e":"offen"},{"n":"Ludwigsfelde","lat":52.3032,"lon":13.254,"g":"S","e":"offen"},{"n":"Trebbin","lat":52.2167,"lon":13.225,"g":"S","e":"offen"},{"n":"Zossen","lat":52.216,"lon":13.4491,"g":"S","e":"offen"},{"n":"Teltow","lat":52.4031,"lon":13.2601,"g":"SW","e":"offen"},{"n":"Stahnsdorf","lat":52.3833,"lon":13.2167,"g":"SW","e":"offen"},{"n":"Beelitz","lat":52.2381,"lon":12.9714,"g":"SW","e":"offen"},{"n":"Brück","lat":52.1977,"lon":12.7687,"g":"SW","e":"offen"},{"n":"Potsdam","lat":52.3989,"lon":13.0657,"g":"W","e":"offen"},{"n":"Werder (Havel)","lat":52.3787,"lon":12.934,"g":"W","e":"offen"},{"n":"Ketzin/Havel","lat":52.4781,"lon":12.8453,"g":"W","e":"offen"},{"n":"Falkensee","lat":52.5601,"lon":13.0927,"g":"NW","e":"offen"},{"n":"Nauen","lat":52.607,"lon":12.8737,"g":"NW","e":"offen"}];
+
+  const el = {
+    readout: document.getElementById("readout"),
+    coords: document.getElementById("coords"),
+    acc: document.getElementById("acc"),
+    setup: document.getElementById("setup"),
+    setupHint: document.getElementById("setup-hint"),
+    tokenInput: document.getElementById("token-input"),
+    tokenSave: document.getElementById("token-save"),
+    picker: document.getElementById("picker"),
+    select: document.getElementById("place-select"),
+    expOffen: document.getElementById("exp-offen"),
+    expWald: document.getElementById("exp-wald"),
+    blocked: document.getElementById("blocked"),
+    note: document.getElementById("note-input"),
+    logRows: document.getElementById("log-rows"),
+    syncState: document.getElementById("sync-state"),
+  };
+  const keys = {
+    trocken: document.getElementById("key-trocken"),
+    grenzwertig: document.getElementById("key-grenzwertig"),
+    nass: document.getElementById("key-nass"),
+  };
+
+  let fix = null;         // {lat, lon, acc, source, place}
+  let exposure = "offen";
+  let queue = [];          // [{client_id, sent, error, sha, path, payload}]
+  let flushing = false;
+
+  // ---------- storage ----------
+  function loadQueue() {
+    try { queue = JSON.parse(localStorage.getItem(QUEUE_KEY) || "[]"); }
+    catch (e) { queue = []; }
+  }
+  function saveQueue() {
+    try { localStorage.setItem(QUEUE_KEY, JSON.stringify(queue.slice(-50))); } catch (e) {}
+  }
+  function loadExposure() {
+    try {
+      const v = localStorage.getItem(EXP_KEY);
+      if (v === "offen" || v === "wald") exposure = v;
+    } catch (e) {}
+  }
+  function saveExposure() {
+    try { localStorage.setItem(EXP_KEY, exposure); } catch (e) {}
+  }
+  function getToken() {
+    try { return localStorage.getItem(TOKEN_KEY) || ""; } catch (e) { return ""; }
+  }
+  function setToken(v) {
+    try { localStorage.setItem(TOKEN_KEY, v); } catch (e) {}
+  }
+
+  // ---------- token setup UI ----------
+  function renderSetup() {
+    const has = !!getToken();
+    el.setup.dataset.configured = has ? "true" : "false";
+    el.setup.open = !has;
+    el.setupHint.textContent = has ? "eingerichtet" : "noch nicht eingerichtet";
+  }
+  el.tokenSave.addEventListener("click", () => {
+    const v = el.tokenInput.value.trim();
+    if (!v) return;
+    setToken(v);
+    el.tokenInput.value = "";
+    el.setup.open = false;
+    renderSetup();
+    flush();
+  });
+
+  // ---------- place picker ----------
+  function fillPicker() {
+    const groups = [];
+    for (const p of PLACES) {
+      let g = groups.find((x) => x.name === p.g);
+      if (!g) { g = { name: p.g, items: [] }; groups.push(g); }
+      g.items.push(p);
+    }
+    for (const g of groups) {
+      const og = document.createElement("optgroup");
+      og.label = g.name;
+      for (const p of g.items) {
+        const o = document.createElement("option");
+        o.value = p.n;
+        o.textContent = p.n;
+        og.appendChild(o);
+      }
+      el.select.appendChild(og);
+    }
+  }
+
+  // ---------- location ----------
+  function setFixFromGps(p) {
+    fix = {
+      lat: +p.coords.latitude.toFixed(5),
+      lon: +p.coords.longitude.toFixed(5),
+      acc: p.coords.accuracy != null ? Math.round(p.coords.accuracy) : null,
+      source: "gps",
+      place: null,
+    };
+    el.readout.classList.remove("is-problem");
+    el.coords.textContent = fix.lat.toFixed(5) + ", " + fix.lon.toFixed(5);
+    el.acc.textContent = fix.acc != null ? "±" + fix.acc + " m" : "";
+    render();
+  }
+
+  function setFixFromPlace(name) {
+    const p = PLACES.find((x) => x.n === name);
+    if (!p) { fix = null; render(); return; }
+    fix = { lat: p.lat, lon: p.lon, acc: null, source: "manual", place: p.n };
+    el.readout.classList.remove("is-problem");
+    el.coords.textContent = p.n;
+    el.acc.textContent = "Ort gewählt";
+    render();
+  }
+
+  function gpsFailed(msg) {
+    el.readout.classList.add("is-problem");
+    el.coords.textContent = msg;
+    el.acc.textContent = "";
+    el.picker.hidden = false;
+    render();
+  }
+
+  function startGeolocation() {
+    if (!navigator.geolocation) {
+      gpsFailed("Kein GPS verfügbar");
+      return;
+    }
+    let got = false;
+    const opts = { enableHighAccuracy: true, timeout: 20000, maximumAge: 15000 };
+    navigator.geolocation.watchPosition(
+      (p) => { got = true; setFixFromGps(p); },
+      (err) => {
+        if (got) return;
+        const reason =
+          err.code === 1 ? "GPS nicht erlaubt" :
+          err.code === 2 ? "GPS-Position nicht verfügbar" :
+          "GPS-Timeout";
+        gpsFailed(reason);
+      },
+      opts
+    );
+    setTimeout(() => { if (!got) el.picker.hidden = false; }, 6000);
+  }
+
+  // ---------- github storage ----------
+  function utf8Base64(str) {
+    const bytes = new TextEncoder().encode(str);
+    let binary = "";
+    for (const b of bytes) binary += String.fromCharCode(b);
+    return btoa(binary);
+  }
+
+  function reportPath(entry) {
+    const stamp = entry.payload.ts.replace(/[:.]/g, "-");
+    return "reports/" + stamp + "-" + entry.client_id.slice(0, 8) + ".json";
+  }
+
+  async function pushOne(entry) {
+    const token = getToken();
+    if (!token) throw { retryable: false, reason: "no-token" };
+    const path = reportPath(entry);
+    const resp = await fetch(
+      `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${path}`,
+      {
+        method: "PUT",
+        headers: {
+          "Authorization": "Bearer " + token,
+          "Accept": "application/vnd.github+json",
+          "X-GitHub-Api-Version": "2022-11-28",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: "report " + entry.payload.condition + " " + entry.payload.ts,
+          content: utf8Base64(JSON.stringify(entry.payload)),
+        }),
+      }
+    );
+    if (!resp.ok) {
+      const retryable = resp.status >= 500 || resp.status === 429 || resp.status === 0;
+      throw { retryable, reason: "http-" + resp.status };
+    }
+    const data = await resp.json();
+    entry.sha = data.content && data.content.sha;
+    entry.path = path;
+  }
+
+  async function flush() {
+    if (flushing) return;
+    flushing = true;
+    try {
+      const pending = queue.filter((e) => !e.sent);
+      for (const entry of pending) {
+        try {
+          await pushOne(entry);
+          entry.sent = true;
+          entry.error = null;
+        } catch (e) {
+          entry.error = e && e.reason ? e.reason : "error";
+          saveQueue();
+          render();
+          if (!e || e.retryable !== false) continue; // try the rest, network hiccup
+          break; // no token -- stop, nothing else will work either
+        }
+        saveQueue();
+        render();
+      }
+    } finally {
+      flushing = false;
+      renderSync();
+    }
+  }
+
+  // ---------- recording ----------
+  function newId() {
+    if (crypto && crypto.randomUUID) return crypto.randomUUID();
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+  }
+
+  function record(condition) {
+    if (!fix) return;
+    const now = new Date();
+    const payload = {
+      ts: now.toISOString(),
+      tz_offset_min: -now.getTimezoneOffset(),
+      lat: fix.lat,
+      lon: fix.lon,
+      accuracy_m: fix.acc,
+      condition: condition,
+      exposure: exposure,
+      note: el.note.value.trim(),
+      place: fix.place,
+      source: fix.source,
+      app_version: APP_VERSION,
+    };
+    const entry = { client_id: newId(), sent: false, error: null, payload: payload };
+    queue.push(entry);
+    saveQueue();
+    el.note.value = "";
+    if (navigator.vibrate) navigator.vibrate(30);
+    render();
+    flush();
+  }
+
+  // ---------- rendering ----------
+  function render() {
+    const ready = !!fix;
+    for (const k of Object.keys(keys)) keys[k].disabled = !ready;
+    el.blocked.textContent = ready ? "" : "Erst Position bestimmen oder Ort wählen.";
+    el.expOffen.setAttribute("aria-pressed", exposure === "offen" ? "true" : "false");
+    el.expWald.setAttribute("aria-pressed", exposure === "wald" ? "true" : "false");
+    renderLog();
+    renderSync();
+  }
+
+  function renderLog() {
+    const recent = queue.slice(-5).reverse();
+    if (!recent.length) {
+      el.logRows.innerHTML = '<div class="empty">Noch nichts gemeldet.</div>';
+      return;
+    }
+    el.logRows.textContent = "";
+    for (const entry of recent) {
+      const p = entry.payload;
+      const row = document.createElement("div");
+      row.className = "log-row";
+
+      const t = document.createElement("span");
+      const d = new Date(p.ts);
+      t.textContent = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+
+      const c = document.createElement("span");
+      c.className = "cond";
+      c.dataset.c = p.condition;
+      c.textContent = p.condition;
+
+      const w = document.createElement("span");
+      w.className = "where";
+      w.textContent = (p.place ? p.place : p.lat.toFixed(3) + "," + p.lon.toFixed(3)) + (p.exposure === "wald" ? " · Wald" : "");
+
+      const s = document.createElement("span");
+      const state = entry.sent ? "sent" : (entry.error && entry.error !== "no-token" ? "error" : "pending");
+      s.className = "state " + state;
+      s.textContent = entry.sent ? "gesendet" : (entry.error === "no-token" ? "kein Token" : entry.error ? "Fehler" : "wartet");
+
+      const x = document.createElement("button");
+      x.className = "drop";
+      x.type = "button";
+      x.title = "Meldung löschen";
+      x.setAttribute("aria-label", "Meldung von " + t.textContent + " löschen");
+      x.textContent = "×";
+      x.addEventListener("click", () => remove(entry));
+
+      row.append(t, c, w, s, x);
+      el.logRows.appendChild(row);
+    }
+  }
+
+  function renderSync() {
+    const pending = queue.filter((e) => !e.sent).length;
+    if (pending > 0) {
+      el.syncState.textContent = pending + " wartet";
+      el.syncState.style.color = "var(--warn)";
+    } else if (queue.length) {
+      el.syncState.textContent = "alles gesendet";
+      el.syncState.style.color = "var(--ok)";
+    } else {
+      el.syncState.textContent = "";
+    }
+  }
+
+  async function remove(entry) {
+    const idx = queue.indexOf(entry);
+    if (idx >= 0) queue.splice(idx, 1);
+    saveQueue();
+    render();
+    if (entry.sent && entry.sha && entry.path) {
+      const token = getToken();
+      if (!token) return;
+      try {
+        await fetch(
+          `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${entry.path}`,
+          {
+            method: "DELETE",
+            headers: {
+              "Authorization": "Bearer " + token,
+              "Accept": "application/vnd.github+json",
+              "X-GitHub-Api-Version": "2022-11-28",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ message: "remove report", sha: entry.sha }),
+          }
+        );
+      } catch (e) {}
+    }
+  }
+
+  // ---------- wiring ----------
+  el.expOffen.addEventListener("click", () => { exposure = "offen"; saveExposure(); render(); });
+  el.expWald.addEventListener("click", () => { exposure = "wald"; saveExposure(); render(); });
+  el.select.addEventListener("change", (e) => setFixFromPlace(e.target.value));
+  keys.trocken.addEventListener("click", () => record("trocken"));
+  keys.grenzwertig.addEventListener("click", () => record("grenzwertig"));
+  keys.nass.addEventListener("click", () => record("nass"));
+  window.addEventListener("online", flush);
+
+  loadQueue();
+  loadExposure();
+  fillPicker();
+  renderSetup();
+  render();
+  startGeolocation();
+  flush();
+</script>
+</body>
+</html>
