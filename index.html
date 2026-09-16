@@ -20,6 +20,14 @@
     --wet-ink: #FFFFFF;
     --ok: #2C7A58;
     --warn: #A85A12;
+    --rain0: #3F8F6B;
+    --rain0-ink: #FFFFFF;
+    --rain1: #6C8FA6;
+    --rain1-ink: #FFFFFF;
+    --rain2: #3A5F8C;
+    --rain2-ink: #FFFFFF;
+    --rain3: #8C3A3A;
+    --rain3-ink: #FFFFFF;
     --font-display: "Archivo", system-ui, sans-serif;
     --font-body: "IBM Plex Sans", system-ui, sans-serif;
     --font-mono: "IBM Plex Mono", ui-monospace, monospace;
@@ -41,10 +49,25 @@
       --wet-ink: #08131F;
       --ok: #4FA97D;
       --warn: #E0A055;
+      --rain0: #5FB98C;
+      --rain0-ink: #08170F;
+      --rain1: #8FB0C4;
+      --rain1-ink: #0A1418;
+      --rain2: #6E93BE;
+      --rain2-ink: #0A1420;
+      --rain3: #C46A6A;
+      --rain3-ink: #1E0808;
     }
   }
 
   * { box-sizing: border-box; }
+  /* Ohne dieses !important gewinnt jede eigene "display:flex"-Regel (z.B.
+     .keys, .exposure, .picker) gegen das UA-Standardverhalten von [hidden]
+     -- Autoren-Deklarationen schlagen User-Agent-Deklarationen bei der
+     CSS-Kaskade unabhaengig von der Spezifitaet. Ohne diese Zeile bleiben
+     per .hidden=true versteckte Elemente sichtbar (traf hier den neuen
+     Regen/Strasse-Umschalter, latent aber schon den bestehenden Picker). */
+  [hidden] { display: none !important; }
   html, body { height: 100%; }
   body {
     margin: 0;
@@ -146,8 +169,8 @@
     width: 100%;
   }
 
-  .exposure { display: flex; gap: 6px; }
-  .exposure button {
+  .exposure, .mode { display: flex; gap: 6px; }
+  .exposure button, .mode button {
     flex: 1;
     font-family: var(--font-body);
     font-size: 14px;
@@ -159,7 +182,7 @@
     color: var(--ink-soft);
     cursor: pointer;
   }
-  .exposure button[aria-pressed="true"] {
+  .exposure button[aria-pressed="true"], .mode button[aria-pressed="true"] {
     border-color: var(--ink);
     color: var(--ink);
     background: var(--surface);
@@ -201,6 +224,10 @@
   .key-dry { background: var(--dry); color: var(--dry-ink); }
   .key-mid { background: var(--mid); color: var(--mid-ink); }
   .key-wet { background: var(--wet); color: var(--wet-ink); }
+  .key-rain0 { background: var(--rain0); color: var(--rain0-ink); }
+  .key-rain1 { background: var(--rain1); color: var(--rain1-ink); }
+  .key-rain2 { background: var(--rain2); color: var(--rain2-ink); }
+  .key-rain3 { background: var(--rain3); color: var(--rain3-ink); }
   .key:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 
   .blocked {
@@ -241,6 +268,10 @@
   .log-row .cond[data-c="trocken"] { color: var(--dry); }
   .log-row .cond[data-c="grenzwertig"] { color: var(--mid); }
   .log-row .cond[data-c="nass"] { color: var(--wet); }
+  .log-row .cond[data-c="kein_regen"] { color: var(--rain0); }
+  .log-row .cond[data-c="nieseln"] { color: var(--rain1); }
+  .log-row .cond[data-c="regen"] { color: var(--rain2); }
+  .log-row .cond[data-c="schuettet"] { color: var(--rain3); }
   .log-row .where { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .log-row .state { font-size: 10.5px; }
   .log-row .state.pending { color: var(--warn); }
@@ -276,6 +307,11 @@
   </div>
 </details>
 
+<div class="mode" role="group" aria-label="Meldungsart">
+  <button type="button" id="mode-strasse" aria-pressed="true">Straße</button>
+  <button type="button" id="mode-regen" aria-pressed="false">Regen</button>
+</div>
+
 <div class="picker" id="picker" hidden>
   <label for="place-select">Ort wählen</label>
   <select id="place-select">
@@ -283,12 +319,12 @@
   </select>
 </div>
 
-<div class="exposure" role="group" aria-label="Exposition">
+<div class="exposure" id="exposure-row" role="group" aria-label="Exposition">
   <button type="button" id="exp-offen" aria-pressed="true">Offene Straße</button>
   <button type="button" id="exp-wald" aria-pressed="false">Wald / Schatten</button>
 </div>
 
-<div class="keys">
+<div class="keys" id="keys-strasse">
   <button type="button" class="key key-dry" id="key-trocken">
     <span class="word">TROCKEN</span>
     <span class="crit">werde nicht dreckig</span>
@@ -300,6 +336,25 @@
   <button type="button" class="key key-wet" id="key-nass">
     <span class="word">NASS</span>
     <span class="crit">dreckig ohne Schutzbleche</span>
+  </button>
+</div>
+
+<div class="keys" id="keys-regen" hidden>
+  <button type="button" class="key key-rain0" id="key-kein_regen">
+    <span class="word">REGNET NICHT</span>
+    <span class="crit">gerade kein Tropfen</span>
+  </button>
+  <button type="button" class="key key-rain1" id="key-nieseln">
+    <span class="word">NIESEL</span>
+    <span class="crit">leicht, kaum nass</span>
+  </button>
+  <button type="button" class="key key-rain2" id="key-regen">
+    <span class="word">REGEN</span>
+    <span class="crit">spürbar, wird nass</span>
+  </button>
+  <button type="button" class="key key-rain3" id="key-schuettet">
+    <span class="word">SCHÜTTET</span>
+    <span class="crit">kräftig, sofort durchnässt</span>
   </button>
 </div>
 
@@ -318,9 +373,10 @@
 </div>
 
 <script>
-  const APP_VERSION = "2.0";
+  const APP_VERSION = "3.0";
   const QUEUE_KEY = "nassmelder.queue.v1";
   const EXP_KEY = "nassmelder.exposure.v1";
+  const MODE_KEY = "nassmelder.mode.v1";
   const TOKEN_KEY = "nassmelder.ghtoken.v1";
   const GH_OWNER = "Llireon";
   const GH_REPO = "nassmelder-data";
@@ -337,21 +393,39 @@
     tokenSave: document.getElementById("token-save"),
     picker: document.getElementById("picker"),
     select: document.getElementById("place-select"),
+    modeStrasse: document.getElementById("mode-strasse"),
+    modeRegen: document.getElementById("mode-regen"),
+    exposureRow: document.getElementById("exposure-row"),
     expOffen: document.getElementById("exp-offen"),
     expWald: document.getElementById("exp-wald"),
+    keysStrasse: document.getElementById("keys-strasse"),
+    keysRegen: document.getElementById("keys-regen"),
     blocked: document.getElementById("blocked"),
     note: document.getElementById("note-input"),
     logRows: document.getElementById("log-rows"),
     syncState: document.getElementById("sync-state"),
   };
-  const keys = {
-    trocken: document.getElementById("key-trocken"),
-    grenzwertig: document.getElementById("key-grenzwertig"),
-    nass: document.getElementById("key-nass"),
+  // Zwei Tastensaetze je Modus, gemeinsam disabled/enabled je nach GPS-Fix.
+  // condition ist der exakte String, den log_observation.py/ingest_observations.py
+  // erwarten (core.VALID_CONDITIONS bzw. CONDITION_MAP) -- nicht frei aendern,
+  // ohne die Python-Seite mitzuziehen.
+  const keysByMode = {
+    strasse: {
+      trocken: document.getElementById("key-trocken"),
+      grenzwertig: document.getElementById("key-grenzwertig"),
+      nass: document.getElementById("key-nass"),
+    },
+    regen: {
+      kein_regen: document.getElementById("key-kein_regen"),
+      nieseln: document.getElementById("key-nieseln"),
+      regen: document.getElementById("key-regen"),
+      schuettet: document.getElementById("key-schuettet"),
+    },
   };
 
   let fix = null;         // {lat, lon, acc, source, place}
   let exposure = "offen";
+  let mode = "strasse";    // "strasse" | "regen" -- steuert payload.type und den Tastensatz
   let queue = [];          // [{client_id, sent, error, sha, path, payload}]
   let flushing = false;
 
@@ -371,6 +445,15 @@
   }
   function saveExposure() {
     try { localStorage.setItem(EXP_KEY, exposure); } catch (e) {}
+  }
+  function loadMode() {
+    try {
+      const v = localStorage.getItem(MODE_KEY);
+      if (v === "strasse" || v === "regen") mode = v;
+    } catch (e) {}
+  }
+  function saveMode() {
+    try { localStorage.setItem(MODE_KEY, mode); } catch (e) {}
   }
   function getToken() {
     try { return localStorage.getItem(TOKEN_KEY) || ""; } catch (e) { return ""; }
@@ -555,6 +638,9 @@
       lat: fix.lat,
       lon: fix.lon,
       accuracy_m: fix.acc,
+      // "dryness" fuer die Strasse, "rain" fuer Regenmeldungen -- die
+      // ingest_observations.py-Skripte beider Skills filtern hierauf.
+      type: mode === "regen" ? "rain" : "dryness",
       condition: condition,
       exposure: exposure,
       note: el.note.value.trim(),
@@ -571,10 +657,23 @@
     flush();
   }
 
+  // ---------- mode switching ----------
+  function applyMode() {
+    const isRegen = mode === "regen";
+    el.modeStrasse.setAttribute("aria-pressed", isRegen ? "false" : "true");
+    el.modeRegen.setAttribute("aria-pressed", isRegen ? "true" : "false");
+    el.exposureRow.hidden = isRegen;   // Exposition betrifft nur die Strasse
+    el.keysStrasse.hidden = isRegen;
+    el.keysRegen.hidden = !isRegen;
+    render();
+  }
+
   // ---------- rendering ----------
   function render() {
     const ready = !!fix;
-    for (const k of Object.keys(keys)) keys[k].disabled = !ready;
+    for (const group of Object.values(keysByMode)) {
+      for (const k of Object.keys(group)) group[k].disabled = !ready;
+    }
     el.blocked.textContent = ready ? "" : "Erst Position bestimmen oder Ort wählen.";
     el.expOffen.setAttribute("aria-pressed", exposure === "offen" ? "true" : "false");
     el.expWald.setAttribute("aria-pressed", exposure === "wald" ? "true" : "false");
@@ -605,7 +704,8 @@
 
       const w = document.createElement("span");
       w.className = "where";
-      w.textContent = (p.place ? p.place : p.lat.toFixed(3) + "," + p.lon.toFixed(3)) + (p.exposure === "wald" ? " · Wald" : "");
+      const expSuffix = p.type !== "rain" && p.exposure === "wald" ? " · Wald" : "";
+      w.textContent = (p.place ? p.place : p.lat.toFixed(3) + "," + p.lon.toFixed(3)) + expSuffix;
 
       const s = document.createElement("span");
       const state = entry.sent ? "sent" : (entry.error && entry.error !== "no-token" ? "error" : "pending");
@@ -665,19 +765,26 @@
   }
 
   // ---------- wiring ----------
+  el.modeStrasse.addEventListener("click", () => { mode = "strasse"; saveMode(); applyMode(); });
+  el.modeRegen.addEventListener("click", () => { mode = "regen"; saveMode(); applyMode(); });
   el.expOffen.addEventListener("click", () => { exposure = "offen"; saveExposure(); render(); });
   el.expWald.addEventListener("click", () => { exposure = "wald"; saveExposure(); render(); });
   el.select.addEventListener("change", (e) => setFixFromPlace(e.target.value));
-  keys.trocken.addEventListener("click", () => record("trocken"));
-  keys.grenzwertig.addEventListener("click", () => record("grenzwertig"));
-  keys.nass.addEventListener("click", () => record("nass"));
+  keysByMode.strasse.trocken.addEventListener("click", () => record("trocken"));
+  keysByMode.strasse.grenzwertig.addEventListener("click", () => record("grenzwertig"));
+  keysByMode.strasse.nass.addEventListener("click", () => record("nass"));
+  keysByMode.regen.kein_regen.addEventListener("click", () => record("kein_regen"));
+  keysByMode.regen.nieseln.addEventListener("click", () => record("nieseln"));
+  keysByMode.regen.regen.addEventListener("click", () => record("regen"));
+  keysByMode.regen.schuettet.addEventListener("click", () => record("schuettet"));
   window.addEventListener("online", flush);
 
   loadQueue();
   loadExposure();
+  loadMode();
   fillPicker();
   renderSetup();
-  render();
+  applyMode();
   startGeolocation();
   flush();
 </script>
